@@ -19,7 +19,7 @@ animation_descriptor_t = {
 # Returns a array with the filenames
 def get_file_names():
 	# Get in the animations directory
-	os.chdir( "Animations" ) # CHECK THIS ( path may be wrong )
+	os.chdir( "Animation/Animations" ) # CHECK THIS ( path may be wrong )
 
 	# Read the file names
 	filenames = os.listdir()
@@ -31,15 +31,16 @@ def get_file_names():
 # Requires the filename as argument
 # Returns the content as array of bytes
 def read_file( filename ):
-	# Create the array to store the file content
-	content = []
+	# Create the string to store the file content
+	content = ""
 
 	# Read the content
 	with open( filename, "rb" ) as file: # CHECK THIS ( path may be wrong )
 		# Read one byte per time
-		while( byte := file.read( 1 ) ):
-			# Store the content
-			content.append( byte )
+		content = file.read()
+		#while( byte := file.read( 1 ) ):
+		#	# Store the content
+		#	content.append( byte )
 	
 	# Return the file content
 	return content

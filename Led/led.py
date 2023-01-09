@@ -1,15 +1,45 @@
 import time
 import neopixel
 from machine import Pin
+import ctypes
 
 from Shared_Informations import shared_informations
 from Animation import animation
 
+# Store the leds
+leds = neopixel.NeoPixel( Pin( shared_informations.generals["control_pin"], Pin.OUT ), shared_informations.generals["number_of_leds"] )
+
+# Function to play animations patterns
+def play_no_pattern( decoded_animation ):
+	for i in range( 0, len( decoded_animation[ "body" ] ) , 1 ):
+		for j in range( 0, len( decoded_animation[ "body" ][i] ), 1 ):
+			print( decoded_animation[ "body" ][ i ][j] )
+	return
+
+def play_rainbow_pattern( decoded_animation ):
+	global leds
+
+	# Keep track of the times the leds have been changed
+	turn = 0
+
+	# Play the animation untill the button is pressed
+	while ( shared_informations.button_pressed == 0 ):
+		# Set all led values
+		for i in range( 0, shared_informations.generals["number_of_leds"], 1 ):
+			leds[i] = decoded_animation[ "body" ][0][ ( i + turn ) % shared_informations.generals["number_of_leds"] ]
+			print( decoded_animation[ "body" ][0][ ( i + turn ) % shared_informations.generals["number_of_leds"] ] )
+		
+		# Write the changings
+		leds.write()
+
+		turn += 1
+		
+		# Sleep for the delay time
+		time.sleep( decoded_animation[ "delay" ] / 1000 )
+	return
+
 # Relations between pattern number and function to play the pattern
 patterns = [ play_no_pattern, play_rainbow_pattern ]
-
-# Store the leds
-leds = 0
 
 # Store the file names
 animations = []
@@ -20,6 +50,7 @@ actual_animation = 0
 # Initialize the led system
 def init_leds():
 	global leds
+	global animations
 
 	# Initialize the led
 	leds = neopixel.NeoPixel( Pin( shared_informations.generals["control_pin"], Pin.OUT ), shared_informations.generals["number_of_leds"] )
@@ -27,11 +58,14 @@ def init_leds():
 	# Get the filenames
 	animations = animation.get_file_names()
 
+	print( animations )
+
 # Get the next animation
 # When the board is started, it starts from 0
 # Returns the filename of the animation
 def get_next_animation():
 	global actual_animation
+	global animations
 
 	# Get the filename
 	filename = animations[ actual_animation ]
@@ -49,11 +83,17 @@ def decode_animation( filename ):
 	# Read the content of the animation
 	animation_binary_content = animation.read_file( filename )
 
+	print( animation_binary_content )
+
 	# Decode the animation descriptor
-	animation_descriptor = struct( addressof( animation_binary_content ), animation_descriptor_t, LITTLE_ENDIAN )
+	animation_descriptor = ctypes.struct( ctypes.addressof( animation_binary_content ), animation.animation_descriptor_t, ctypes.LITTLE_ENDIAN )
 
 	# Remove the animation descriptor from the content
-	del animation_binary_content[ :11 ]
+	print( animation_binary_content )
+	print( animation_binary_content[0] )
+	animation_binary_content = animation_binary_content[ 11 : ]
+
+	print( animation_binary_content )
 
 	decoded_animation = {}
 
@@ -64,6 +104,9 @@ def decode_animation( filename ):
 
 	# Decode the animation
 	# Read one line per time
+	print( "Number of lines: " + str( animation_descriptor.number_of_lines ) + "\nLine Length: " + str( animation_descriptor.line_length ) )
+	#for i in range( 0, animation_descriptor.line_length, 3 ):
+	#	print( str( animation_binary_content[ i ] ) + ", " + str( animation_binary_content[ i + 1 ] ) + ", " + str( animation_binary_content[ i + 2 ] ) )
 	for i in range( 0, animation_descriptor.number_of_lines, 1 ):
 		# Store the line
 		line = []
@@ -75,7 +118,7 @@ def decode_animation( filename ):
 
 			# Read the colors
 			for k in range ( 0, 3, 1 ):
-				pixel[ i ] = animation_binary_content[ i * animation_descriptor.line_length + j + k ]
+				pixel[ k ] = animation_binary_content[ i * animation_descriptor.line_length + j + k ]
 
 			# Add the pixel
 			line.append( pixel )
@@ -91,11 +134,5 @@ def decode_animation( filename ):
 # Requires as input a decoded animation
 def select_play_method( decoded_animation ):
 	# Play the animation based on the pattern
-	patterns[ decoded_animation[ "pattern" ] ]( decode_animation )
-	return
-
-# Plays a rainbow animation
-# Plays untill the button is pressed
-# Requires as argument a decoded animation
-def play_rainbow_pattern( decoded ):
+	patterns[ decoded_animation[ "pattern" ] ]( decoded_animation )
 	return
