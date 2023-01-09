@@ -7,7 +7,7 @@ from Shared_Informations import shared_informations
 from Animation import animation
 
 # Store the leds
-leds = neopixel.NeoPixel( Pin( shared_informations.generals["control_pin"], Pin.OUT ), shared_informations.generals["number_of_leds"] )
+leds = neopixel.NeoPixel( Pin( shared_informations.generals[ "led_pin"], Pin.OUT ), shared_informations.generals["number_of_leds"] )
 
 # Function to play animations patterns
 def play_no_pattern( decoded_animation ):
@@ -16,9 +16,9 @@ def play_no_pattern( decoded_animation ):
 			print( decoded_animation[ "body" ][ i ][j] )
 	return
 
+# Plays an animation that follows the rainbow pattern
+# Requires the decoded animaion as argument
 def play_rainbow_pattern( decoded_animation ):
-	global leds
-
 	# Keep track of the times the leds have been changed
 	turn = 0
 
@@ -27,7 +27,6 @@ def play_rainbow_pattern( decoded_animation ):
 		# Set all led values
 		for i in range( 0, shared_informations.generals["number_of_leds"], 1 ):
 			leds[i] = decoded_animation[ "body" ][0][ ( i + turn ) % shared_informations.generals["number_of_leds"] ]
-			print( decoded_animation[ "body" ][0][ ( i + turn ) % shared_informations.generals["number_of_leds"] ] )
 		
 		# Write the changings
 		leds.write()
@@ -36,10 +35,29 @@ def play_rainbow_pattern( decoded_animation ):
 		
 		# Sleep for the delay time
 		time.sleep( decoded_animation[ "delay" ] / 1000 )
-	return
+
+# Play a static animation
+# Write the colors just once and than waits for the button to be pressed
+# Requires the decoded animaion as argument
+def play_static( decoded_animation ):
+	# Set all led values
+	for i in range( 0, shared_informations.generals["number_of_leds"], 1 ):
+		leds[i] = decoded_animation[ "body" ][0][i]
+	
+	# Write the changings
+	leds.write()
+	
+	# Wait for the button to be pressed
+	while ( shared_informations.button_pressed == 0 ):
+		# Sleep for 1 second
+		time.sleep( 1 )
+
 
 # Relations between pattern number and function to play the pattern
-patterns = [ play_no_pattern, play_rainbow_pattern ]
+# 0 = default animation
+# 1 = rainbow animation
+# 2 = static animation
+patterns = [ play_no_pattern, play_rainbow_pattern, play_static ]
 
 # Store the file names
 animations = []
@@ -53,7 +71,7 @@ def init_leds():
 	global animations
 
 	# Initialize the led
-	leds = neopixel.NeoPixel( Pin( shared_informations.generals["control_pin"], Pin.OUT ), shared_informations.generals["number_of_leds"] )
+	leds = neopixel.NeoPixel( Pin( shared_informations.generals["led_pin"], Pin.OUT ), shared_informations.generals["number_of_leds"] )
 
 	# Get the filenames
 	animations = animation.get_file_names()
@@ -83,17 +101,11 @@ def decode_animation( filename ):
 	# Read the content of the animation
 	animation_binary_content = animation.read_file( filename )
 
-	print( animation_binary_content )
-
 	# Decode the animation descriptor
 	animation_descriptor = ctypes.struct( ctypes.addressof( animation_binary_content ), animation.animation_descriptor_t, ctypes.LITTLE_ENDIAN )
 
 	# Remove the animation descriptor from the content
-	print( animation_binary_content )
-	print( animation_binary_content[0] )
 	animation_binary_content = animation_binary_content[ 11 : ]
-
-	print( animation_binary_content )
 
 	decoded_animation = {}
 
@@ -104,9 +116,6 @@ def decode_animation( filename ):
 
 	# Decode the animation
 	# Read one line per time
-	print( "Number of lines: " + str( animation_descriptor.number_of_lines ) + "\nLine Length: " + str( animation_descriptor.line_length ) )
-	#for i in range( 0, animation_descriptor.line_length, 3 ):
-	#	print( str( animation_binary_content[ i ] ) + ", " + str( animation_binary_content[ i + 1 ] ) + ", " + str( animation_binary_content[ i + 2 ] ) )
 	for i in range( 0, animation_descriptor.number_of_lines, 1 ):
 		# Store the line
 		line = []
@@ -136,3 +145,12 @@ def select_play_method( decoded_animation ):
 	# Play the animation based on the pattern
 	patterns[ decoded_animation[ "pattern" ] ]( decoded_animation )
 	return
+
+def play():
+	print( "Started to play animations" )
+
+	# Play animation forever
+	while True:
+		shared_informations.button_pressed = 0
+		select_play_method( decode_animation( get_next_animation() ) )
+		print( "Changing Animation" )

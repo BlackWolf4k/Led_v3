@@ -1,3 +1,6 @@
+# To use both cores
+import _thread
+
 from Led import led
 from Button import button
 
@@ -11,8 +14,17 @@ def init():
 if __name__ == "__main__":
 	print( "Debug of Led_v3 aka sLeds_v2" )
 	print( "Initializing the system" )
+
+	# Initialize the system
 	init()
+
 	print( "System Initialized" )
-	print( "Started to play animations" )
-	led.select_play_method( led.decode_animation( led.get_next_animation() ) )
+
+	# Wait for the button to be pressed
+	# Task done by the second core
+	client_thread = _thread.start_new_thread( button.wait, () )
+
+	# Play the animations
+	led.play()
+
 	print( "Stopped" )
